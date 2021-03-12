@@ -13,6 +13,8 @@ import time
 import argparse 
 import sys
 import requests
+from picamera.array import PiRGBArray
+from picamera import PiCamera
 
 ### Class for calculating the angle between two green objects with the webcam 
 class CalculateAngle:
@@ -26,31 +28,13 @@ class CalculateAngle:
 		self.varAngleData = []
 		self.varIndex = 0
 		
-		# Initialize webcam and set the fps 
-		self.varCap = cv2.VideoCapture(0)
-		
 		# allow the camera or video file to warm up
 		time.sleep(2.0)
 	
-	## Function that returns a frame 
-	def GetFrame(self):
-		# Get frame
-		tempFrame = self.varCap.read()
-		
-		# Check for valid frame, if not return 0, else return the frame 
-		if tempFrame[1] is None:
-			sys.exit("doei")
-		else:
-			self.varFrame = tempFrame[1]
-			return self.varFrame
-	
 	## Function that preprocesses a frame
-	def PreProcessFrame(self):
-		# Resize frame and blur it for faster processing
-		imutils.resize(self.varFrame, width = self.varWidth)
-		
+	def PreProcessFrame(self, parFrame):
 		# Blur the frame to reduce noise for detecting edged
-		tempBlurred = cv2.GaussianBlur(self.varFrame, (11, 11), 0)
+		tempBlurred = cv2.GaussianBlur(parFrame, (11, 11), 0)
 		
 		# Saturate the blurred frame so red, green and blue stand out more
 		tempProcessedFrame = cv2.cvtColor(tempBlurred, cv2.COLOR_BGR2HSV)
@@ -130,6 +114,12 @@ class CalculateAngle:
 	
 ### Main function	
 if __name__ == "__main__":
+	# Initialize webcam and set the fps 
+	varCap = PiCamera()
+	varCap.resolution = (640, 480)
+	varCap.framerate = 32
+	varRawCap = PiRGBArray(varCap, size=(640, 480))
+
 	# Create object of class and parsing in width, color boundaries and the minim	
 	CalcAngle = CalculateAngle(parWidth = 600, 
 							   parUpperColor = (64, 255, 255), 
@@ -141,12 +131,9 @@ if __name__ == "__main__":
 	varIndex = 0
 	
 	# StarCalcAngleting loop	
-	while True:
-		# Check if frame is valid, otherwise, stop program
-		tempFrame = CalcAngle.GetFrame()
-	
+	for tempFrame in varCap.capture_continuous(rawCapture, format="bgr", use_video_port=True):
 		# Preprocess the frame and create a mask of it
-		tempProcessedFrame = CalcAngle.PreProcessFrame()
+		tempProcessedFrame = CalcAngle.PreProcessFrame(tempFrame)
 		
 		# Create a mask
 		tempMask = CalcAngle.CreateMask(tempProcessedFrame)
